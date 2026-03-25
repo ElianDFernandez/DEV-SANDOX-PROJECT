@@ -1,0 +1,82 @@
+version: '3.8'
+
+# =================================================================================
+# ARQUITECTURA DEL PROYECTO: DEV-SANDBOX-PROJECT
+# =================================================================================
+# 1. FRONTEND (Puerto 5174): React + Vite. 
+# 2. BACKEND (Puerto 8001): PHP 8.4 + Laravel (Apache). 
+# 3. BASE DE DATOS (Puerto 3307): MySQL 8.0. 
+# 4. ADMIN DB (Puerto 8081): phpMyAdmin. 
+# =================================================================================
+services:
+  # Base de Datos (MySQL)
+  db:
+    image: mysql:8.0
+    container_name: sandbox_db
+    restart: always
+    environment:
+      MYSQL_DATABASE: sandbox_stock
+      MYSQL_ROOT_PASSWORD: secret
+      MYSQL_PASSWORD: secret
+      MYSQL_USER: sandbox_user
+    ports:
+      - "3307:3306"
+    volumes:
+      - sandbox_db_data:/var/lib/mysql
+
+  # Administrador de Base de Datos (phpMyAdmin)
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: sandbox_phpmyadmin
+    ports:
+      - "8081:80"
+    environment:
+      - PMA_HOST=db
+      - PMA_PORT=3306
+    depends_on:
+      - db
+
+  # Backend (PHP/Laravel)
+  backend:
+    image: php:8.4-apache
+    container_name: sandbox_backend
+    ports:
+      - "8001:80"
+    volumes:
+      - ./backend:/var/www/html
+      - ./docker/apache/000-default.conf:/etc/apache2/sites-available/000-default.conf
+    environment:
+      - DB_HOST=db
+      - DB_DATABASE=sandbox_stock
+      - DB_USERNAME=sandbox_user
+      - DB_PASSWORD=secret
+    command: >
+      sh -c "
+        docker-php-ext-install pdo pdo_mysql &&
+        a2enmod rewrite &&
+        apache2-foreground
+      "
+    depends_on:
+      - db
+
+  # Frontend (React con Vite)
+  frontend:
+    image: node:20-alpine
+    container_name: sandbox_frontend
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+    ports:
+      - "5174:5173"
+    command: >
+      sh -c "
+        if [ ! -f package.json ]; then
+          npx --yes create-vite@latest . --template react &&
+          printf \"import { defineConfig } from 'vite'\nimport react from '@vitejs/plugin-react'\n\nexport default defineConfig({\n  plugins: [react()],\n  server: {\n    host: true,\n    port: 5173,\n    watch: {\n      usePolling: true,\n    }\n  }\n})\" > vite.config.js
+        fi &&
+        npm install &&
+        npm run dev -- --host 0.0.0.0
+      "
+
+volumes:
+  sandbox_db_data:
