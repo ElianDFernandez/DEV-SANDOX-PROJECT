@@ -22,6 +22,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // AUTENTICACIÓN
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/perfil', [AuthController::class, 'perfil']);
+    Route::put('/perfil', [AuthController::class, 'actualizarPerfil']);
 
     // CATEGORÍAS
     Route::apiResource('categorias', CategoriaController::class);

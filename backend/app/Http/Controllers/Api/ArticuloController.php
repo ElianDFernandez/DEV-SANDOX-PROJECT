@@ -4,15 +4,24 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Articulo;
+use App\Models\Categoria;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class ArticuloController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $articulos = Articulo::with('categoria')->get();
-        return response()->json($articulos);
+        $query = Articulo::with('categoria');
+        if ($request->filled('categoria_id')) {
+            $query->where('categoria_id', $request->categoria_id);
+        }
+        $articulos = $query->get();
+        $categorias = Categoria::all();
+        return response()->json([
+            'articulos' => $articulos,
+            'categorias' => $categorias
+        ]);
     }
 
     public function store(Request $request)
