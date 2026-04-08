@@ -1,7 +1,7 @@
 version: '3.8'
 
 # =================================================================================
-# ARQUITECTURA DEL PROYECTO: DEV-SANDBOX-PROJECT
+# ARQUITECTURA DEL PROYECTO: DEV-PLATERO-PROJECT
 # =================================================================================
 # 1. FRONTEND (Puerto 5174): React + Vite. 
 # 2. BACKEND (Puerto 8001): PHP 8.4 + Laravel (Apache). 
@@ -12,22 +12,22 @@ services:
   # Base de Datos (MySQL)
   db:
     image: mysql:8.0
-    container_name: sandbox_db
+    container_name: platero_db
     restart: always
     environment:
-      MYSQL_DATABASE: sandbox_stock
+      MYSQL_DATABASE: platero_stock
       MYSQL_ROOT_PASSWORD: secret
       MYSQL_PASSWORD: secret
-      MYSQL_USER: sandbox_user
+      MYSQL_USER: platero_user
     ports:
       - "3307:3306"
     volumes:
-      - sandbox_db_data:/var/lib/mysql
+      - platero_db_data:/var/lib/mysql
 
   # Administrador de Base de Datos (phpMyAdmin)
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
-    container_name: sandbox_phpmyadmin
+    container_name: platero_phpmyadmin
     ports:
       - "8081:80"
     environment:
@@ -39,7 +39,7 @@ services:
   # Backend (PHP/Laravel)
   backend:
     build: .
-    container_name: sandbox_backend
+    container_name: platero_backend
     ports:
       - "8001:80"
     volumes:
@@ -49,8 +49,8 @@ services:
       - DB_CONNECTION=mysql
       - DB_HOST=db
       - DB_PORT=3306
-      - DB_DATABASE=sandbox_stock
-      - DB_USERNAME=sandbox_user
+      - DB_DATABASE=platero_stock
+      - DB_USERNAME=platero_user
       - DB_PASSWORD=secret
     depends_on:
       - db
@@ -58,7 +58,7 @@ services:
   # Frontend (React con Vite)
   frontend:
     image: node:20-alpine
-    container_name: sandbox_frontend
+    container_name: platero_frontend
     working_dir: /app
     volumes:
       - ./frontend:/app
@@ -75,4 +75,4 @@ services:
       "
 
 volumes:
-  sandbox_db_data:
+  platero_db_data:

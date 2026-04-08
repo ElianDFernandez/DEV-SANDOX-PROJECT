@@ -1,9 +1,9 @@
-# DEV-SANDBOX-PROJECT 📦
+# DEV-PLATERO-PROJECT 📦
 
 > Repositorio de desarrollo de proyecto personal enfocado en la gestión de stock y cálculo de costos de productos.
 
 ## 🚀 Sobre el proyecto
-Este sandbox es un espacio de práctica de desarrollo con una finalidad 100% funcional. El objetivo principal es construir una herramienta robusta que permita a emprendimientos o tiendas de llevar un control exacto de su inventario y automatizar procesos de cálculo de costos, facilitando la toma de decisiones y optimizando la gestión del negocio.
+Platero es un espacio de práctica de desarrollo con una finalidad 100% funcional. El objetivo principal es construir una herramienta robusta que permita a emprendimientos o tiendas llevar un control exacto de su inventario y automatizar procesos de cálculo de costos, facilitando la toma de decisiones y optimizando la gestión del negocio.
 
 ## 📋 Funcionalidades Core (MVP)
 - [ ] **Catálogo de Productos:** Alta, baja y modificación (ABM) de artículos.
@@ -19,7 +19,7 @@ Este sandbox es un espacio de práctica de desarrollo con una finalidad 100% fun
 ## ⚙️ Instalación y Uso
 1. Clonar este repositorio:
    ```bash
-   git clone [https://github.com/ElianDFernandez/DEV-SANDBOX-PROJECT.git](https://github.com/ElianDFernandez/DEV-SANDBOX-PROJECT.git)
+   git clone [https://github.com/ElianDFernandez/DEV-PLATERO-PROJECT.git](https://github.com/ElianDFernandez/DEV-PLATERO-PROJECT.git)
    ```
 1. Instalación de dependencias y levantado de contenedores:
    ```
@@ -27,7 +27,7 @@ Este sandbox es un espacio de práctica de desarrollo con una finalidad 100% fun
    ```
 2. Acceder al contenedor backend para instalar dependencias:
    ```
-   docker exec -it sandbox_backend bash
+   docker exec -it platero_backend bash
    composer install
    chown -R www-data:www-data storage bootstrap/cache
    chmod -R 775 storage bootstrap/cache

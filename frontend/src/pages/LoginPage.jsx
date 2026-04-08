@@ -39,10 +39,9 @@ const LoginPage = () => {
                 <Container maxW="md" p={4}>
                     <form onSubmit={handleLogin}>
                         <Stack gap={6} p={8} bg="superficie.tarjeta" borderRadius="xl" boxShadow="2xl" border="1px solid" borderColor="superficie.borde">
-                            <Heading size="2xl" color="marca.500" textAlign="center" w="full" letterSpacing="tight">
-                                {import.meta.env.VITE_APP_NAME || "PLATERO"}
-                            </Heading>
-                            <Box w="full" h="1px" bg="superficie.borde" mb={2} />
+                            <Box h="auto" textAlign="center" mx="auto">
+                                <img src="/logoV1.svg" alt="Logo" style={{ width: '100%', height: 'auto', display: 'inline-block' }} />
+                            </Box>
                             <Field.Root invalid={!!errorMsg}>
                                 <Field.Label fontWeight="semibold">Email</Field.Label>
                                 <Input type="email" value={email} onChange={handleTyping(setEmail)} required variant="outline"/>

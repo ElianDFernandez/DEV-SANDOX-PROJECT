@@ -7,9 +7,9 @@ const SidebarContent = ({ isDarkMode, toggleTheme, onClose }) => {
   return (
     <Flex direction="column" h="full" w="full">
       <Flex align="center" justify="space-between" mb={10}>
-        <Heading size="xl" color="marca.500" textAlign="center" w="full">
-          {import.meta.env.VITE_APP_NAME || "PLATERO"}
-        </Heading>
+          <Box w="120px" h="auto" textAlign="center" mx="auto">
+            <img src="/logoV1.svg" alt="Logo" style={{ width: '100%', height: 'auto', display: 'inline-block' }} />
+          </Box>
         <Box display={{ base: "block", md: "none" }} onClick={onClose} cursor="pointer">
           <X size={24} />
         </Box>
