@@ -22,6 +22,11 @@ class FormulaController extends Controller
             'materia_prima_id' => 'required|exists:articulos,id|different:' . $articulo->id,
             'cantidad_necesaria' => 'required|numeric|min:0.001'
         ]);
+        $insumo = Articulo::find($validado['materia_prima_id']);
+        if ($insumo && $insumo->tipo === 'producto_terminado') {
+            $insumo->unidad_medida = 'unidad';
+            $insumo->save();
+        }
 
         $articulo->ingredientes()->syncWithoutDetaching([
             $validado['materia_prima_id'] => [

@@ -84,4 +84,37 @@ class ArticuloController extends Controller
             'mensaje' => 'Artículo eliminado con éxito'
         ]);
     }
+
+    public function recalcularCosto(Articulo $articulo)
+    {
+        if ($articulo->tipo !== 'producto_terminado') {
+            return response()->json([
+                'error' => 'Solo se puede recalcular costo para productos terminados.'
+            ], 422);
+        }
+
+        $articulo->load('ingredientes');
+
+        if ($articulo->ingredientes->isEmpty()) {
+            return response()->json([
+                'error' => 'El producto no tiene fórmula cargada.'
+            ], 422);
+        }
+
+        $costoCalculado = 0;
+        foreach ($articulo->ingredientes as $ingrediente) {
+            $cantidadNecesaria = (float) $ingrediente->pivot->cantidad_necesaria;
+            $costoIngrediente = (float) $ingrediente->costo_base;
+            $costoCalculado += $costoIngrediente * $cantidadNecesaria;
+        }
+
+        $articulo->update([
+            'costo_base' => round($costoCalculado, 2)
+        ]);
+
+        return response()->json([
+            'mensaje' => 'Costo recalculado con éxito.',
+            'articulo' => $articulo->fresh(['categoria'])
+        ]);
+    }
 }

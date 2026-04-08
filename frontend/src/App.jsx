@@ -6,6 +6,7 @@ import Dashboard from "./pages/Dashboard";
 import PerfilPage from "./pages/PerfilPage";
 import CategoriasPage from "./pages/CategoriasPage";
 import ArticulosPage from "./pages/ArticulosPage";
+import MovimientosPage from "./pages/MovimientosPage";
 
 function App() {
   const token = localStorage.getItem("token");
@@ -20,6 +21,7 @@ function App() {
           <Route path="/perfil" element={isAuthenticated ? <PerfilPage /> : <Navigate to="/login" />} />
           <Route path="/categorias" element={isAuthenticated ? <CategoriasPage /> : <Navigate to="/login" />} />
           <Route path="/articulos" element={isAuthenticated ? <ArticulosPage /> : <Navigate to="/login" />} />
+          <Route path="/movimientos" element={isAuthenticated ? <MovimientosPage /> : <Navigate to="/login" />} />
           <Route path="*" element={<Navigate to="/login" />} />
         </Routes>
       </BrowserRouter>

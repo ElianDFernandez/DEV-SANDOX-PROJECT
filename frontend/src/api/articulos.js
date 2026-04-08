@@ -32,3 +32,8 @@ export const fetchArticulo = async (id) => {
 	return data;
 };
 
+export const recalcularCostoArticulo = async (id) => {
+	const { data } = await api.post(`/articulos/${id}/recalcular-costo`);
+	return data;
+};
+

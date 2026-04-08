@@ -29,6 +29,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // ARTÍCULOS
     Route::apiResource('articulos', ArticuloController::class);
+    Route::post('articulos/{articulo}/recalcular-costo', [ArticuloController::class, 'recalcularCosto']);
 
     // FÓRMULA
     Route::apiResource('articulos.formulas', FormulaController::class)->only(['index', 'store', 'destroy']);

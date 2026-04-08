@@ -3,15 +3,16 @@ import { Box, Heading, Button, VStack, HStack, Text, Input, Field, Dialog, Stack
 import AlertMessage from "../components/AlertMessage";
 import PageLoader from "../components/PageLoader";
 import ConfirmDialog from "../components/ConfirmDialog";
-import { Plus, Edit, Trash, Filter } from "lucide-react";
+import { Plus, Edit, Trash, Filter, List } from "lucide-react";
 import MainLayout from "../components/MainLayout";
 import {
   fetchArticulos,
   createArticulo,
   updateArticulo,
   deleteArticulo,
-  fetchArticulo
+  recalcularCostoArticulo
 } from "../api/articulos";
+import { fetchFormula, addIngredienteFormula, removeIngredienteFormula } from "../api/formulas";
 
 const ArticulosPage = () => {
   const [articulos, setArticulos] = useState([]);
@@ -40,6 +41,15 @@ const ArticulosPage = () => {
   const [deleting, setDeleting] = useState(false);
   const [categoriaFiltro, setCategoriaFiltro] = useState("");
   const [fadingOutId, setFadingOutId] = useState(null);
+  const [isFormulaOpen, setIsFormulaOpen] = useState(false);
+  const [selectedProducto, setSelectedProducto] = useState(null);
+  const [formulaItems, setFormulaItems] = useState([]);
+  const [formulaLoading, setFormulaLoading] = useState(false);
+  const [formulaSaving, setFormulaSaving] = useState(false);
+  const [formulaDeletingId, setFormulaDeletingId] = useState(null);
+  const [formulaRecalculating, setFormulaRecalculating] = useState(false);
+  const [formulaError, setFormulaError] = useState(null);
+  const [formulaForm, setFormulaForm] = useState({ materia_prima_id: "", cantidad_necesaria: "1" });
 
   const fetchData = async (categoriaId = null) => {
     setLoading(true);
@@ -68,40 +78,111 @@ const ArticulosPage = () => {
     setErrorMsg(null);
   };
 
+  const loadFormula = async (productoId) => {
+    setFormulaLoading(true);
+    setFormulaError(null);
+    try {
+      const data = await fetchFormula(productoId);
+      setFormulaItems(data.formula || []);
+    } catch (err) {
+      setFormulaError("No se pudo cargar la fórmula del producto.");
+    } finally {
+      setFormulaLoading(false);
+    }
+  };
+
+  const handleOpenFormula = async (articulo) => {
+    clearMessages();
+    setSelectedProducto(articulo);
+    setFormulaForm({ materia_prima_id: "", cantidad_necesaria: "1" });
+    setIsFormulaOpen(true);
+    await loadFormula(articulo.id);
+  };
+
+  const handleCloseFormula = () => {
+    if (formulaSaving || formulaDeletingId) return;
+    setIsFormulaOpen(false);
+    setSelectedProducto(null);
+    setFormulaItems([]);
+    setFormulaError(null);
+    setFormulaForm({ materia_prima_id: "", cantidad_necesaria: "1" });
+  };
+
+  const handleAddIngrediente = async () => {
+    if (!selectedProducto) return;
+
+    const cantidad = Number(formulaForm.cantidad_necesaria);
+    if (!formulaForm.materia_prima_id) {
+      setFormulaError("Selecciona un insumo.");
+      return;
+    }
+    if (!Number.isFinite(cantidad) || cantidad <= 0) {
+      setFormulaError("La cantidad debe ser mayor que 0.");
+      return;
+    }
+
+    setFormulaSaving(true);
+    setFormulaError(null);
+    try {
+      await addIngredienteFormula(selectedProducto.id, { materia_prima_id: Number(formulaForm.materia_prima_id), cantidad_necesaria: cantidad });
+      await loadFormula(selectedProducto.id);
+      setFormulaForm({ materia_prima_id: "", cantidad_necesaria: "1" });
+    } catch (err) {
+      setFormulaError("No se pudo agregar el insumo a la fórmula.");
+    } finally {
+      setFormulaSaving(false);
+    }
+  };
+
+  const handleRemoveIngrediente = async (materiaPrimaId) => {
+    if (!selectedProducto) return;
+    setFormulaDeletingId(materiaPrimaId);
+    setFormulaError(null);
+    try {
+      await removeIngredienteFormula(selectedProducto.id, materiaPrimaId);
+      await loadFormula(selectedProducto.id);
+    } catch (err) {
+      setFormulaError("No se pudo quitar el insumo de la fórmula.");
+    } finally {
+      setFormulaDeletingId(null);
+    }
+  };
+
+  const handleRecalcularCosto = async () => {
+    if (!selectedProducto) return;
+
+    setFormulaRecalculating(true);
+    setFormulaError(null);
+    try {
+      await recalcularCostoArticulo(selectedProducto.id);
+      await fetchData(categoriaFiltro || null);
+      await loadFormula(selectedProducto.id);
+    } catch (err) {
+      setFormulaError("No se pudo recalcular el costo del producto.");
+    } finally {
+      setFormulaRecalculating(false);
+    }
+  };
+
+  const insumosDisponibles = articulos.filter((item) => item.tipo === "insumo" && item.id !== selectedProducto?.id && item.esta_activo);
+  const insumoSeleccionado = insumosDisponibles.find((item) => item.id === Number(formulaForm.materia_prima_id));
+
   if (loading) {
     return <PageLoader />;
   }
 
   const handleOpenModal = (art = null) => {
+    if (!categorias || categorias.length === 0) {
+      setErrorMsg("Debes crear al menos una categoría antes de crear artículos.");
+      return;
+    }
     clearMessages();
     if (art) {
       setSelectedId(art.id);
-      setForm({
-        nombre: art.nombre || "",
-        categoria_id: art.categoria_id || "",
-        tipo: art.tipo || "insumo",
-        sku: art.sku || "",
-        unidad_medida: art.unidad_medida || "",
-        stock_actual: art.stock_actual || 0,
-        stock_minimo: art.stock_minimo || 0,
-        costo_base: art.costo_base || 0,
-        margen_ganancia: art.margen_ganancia || 0,
-        esta_activo: art.esta_activo ?? true
-      });
+      setForm({ nombre: art.nombre || "", categoria_id: art.categoria_id || "", tipo: art.tipo || "insumo", sku: art.sku || "", unidad_medida: art.unidad_medida || "", stock_actual: art.stock_actual || 0, stock_minimo: art.stock_minimo || 0, costo_base: art.costo_base || 0, margen_ganancia: art.margen_ganancia || 0, esta_activo: art.esta_activo ?? true });
     } else {
       setSelectedId(null);
-      setForm({
-        nombre: "",
-        categoria_id: "",
-        tipo: "insumo",
-        sku: "",
-        unidad_medida: "",
-        stock_actual: 0,
-        stock_minimo: 0,
-        costo_base: 0,
-        margen_ganancia: 0,
-        esta_activo: true
-      });
+      setForm({ nombre: "", categoria_id: "", tipo: "insumo", sku: "", unidad_medida: "", stock_actual: 0, stock_minimo: 0, costo_base: 0, margen_ganancia: 0, esta_activo: true });
     }
     setFormError(null);
     setIsOpen(true);
@@ -183,11 +264,11 @@ const ArticulosPage = () => {
                     <NativeSelect.Indicator />
                     </NativeSelect.Root>
                 </Box>
-                <Button bg="marca.500" _hover={{ bg: "marca.600" }} size="sm" onClick={() => handleOpenModal()}>
-                    <Plus size={18}/> 
-                    <Text style={{ marginLeft: '8px' }} display={{ base: "none", md: "inline" }} color="texto.inverso">
-                        Nuevo Artículo
-                    </Text>
+                <Button bg="marca.500" _hover={{ bg: "marca.600" }} size="sm" onClick={() => handleOpenModal()} title={(!categorias || categorias.length === 0) ? "Debes crear al menos una categoría" : undefined}>
+                  <Plus size={18}/> 
+                  <Text style={{ marginLeft: '8px' }} display={{ base: "none", md: "inline" }} color="texto.inverso">
+                    Nuevo Artículo
+                  </Text>
                 </Button>
             </Flex>
         </HStack>
@@ -203,13 +284,15 @@ const ArticulosPage = () => {
             {articulos.length === 0 ? (
               <Text color="texto.secundario">No hay artículos registrados.</Text>
             ) : (
-              [...articulos].sort((a, b) => {
-                if (a.esta_activo === b.esta_activo) return 0;
-                return a.esta_activo ? -1 : 1;
-              }).map((art) => {
+              [...articulos]
+                .sort((a, b) => {
+                  if (a.esta_activo === b.esta_activo) return 0;
+                  return a.esta_activo ? -1 : 1;
+                })
+                .map((art) => {
                 const isFadingOut = fadingOutId === art.id;
                 return (
-                  <HStack key={art.id} bg="superficie.tarjeta" borderRadius="xl" justify="space-between" border="1px solid" borderColor="superficie.borde" p={isFadingOut ? 0 : 3} borderWidth={isFadingOut ? "0px" : "1px"} maxHeight={isFadingOut ? "0px" : "96px"} overflow="hidden" mt={isFadingOut ? "-8px" : "0"} opacity={isFadingOut ? 0 : (art.esta_activo ? 1 : 0.5)} transform={isFadingOut ? "translateX(100px)" : "translateX(0)"} transition="opacity 0.2s ease, transform 0.2s ease, max-height 0.2s ease 0.2s, padding 0.2s ease 0.2s, border-width 0.2s ease 0.2s, margin-top 0.2s ease 0.2s" pointerEvents={isFadingOut ? "none" : "auto"}>
+                  <Stack key={art.id} direction={{ base: "column", md: "row" }} bg="superficie.tarjeta" borderRadius="xl" justify="space-between" border="1px solid" borderColor="superficie.borde" p={isFadingOut ? 0 : 3} borderWidth={isFadingOut ? "0px" : "1px"} maxHeight={isFadingOut ? "0px" : "260px"} overflow="hidden" mt={isFadingOut ? "-8px" : "0"} opacity={isFadingOut ? 0 : (art.esta_activo ? 1 : 0.5)} transform={isFadingOut ? "translateX(100px)" : "translateX(0)"} transition="opacity 0.2s ease, transform 0.2s ease, max-height 0.2s ease 0.2s, padding 0.2s ease 0.2s, border-width 0.2s ease 0.2s, margin-top 0.2s ease 0.2s" pointerEvents={isFadingOut ? "none" : "auto"} gap={3}>
                     <Box flex={1} minW={0}>
                       <HStack gap={2} mb={1} align="center">
                         <Text color="texto.principal" fontWeight="medium" isTruncated maxW="180px">{art.nombre}</Text>
@@ -217,16 +300,16 @@ const ArticulosPage = () => {
                           {art.tipo === 'insumo' ? 'Insumo' : 'Producto terminado'}
                         </Text>
                       </HStack>
-                      <HStack spacing={6} align="start">
-                        <VStack align="start" spacing={0} minW="120px">
+                      <HStack direction={{ base: "column", md: "row" }} spacing={{ base: 1, md: 6 }} align={{ base: "stretch", md: "start" }}>
+                        <VStack align="start" spacing={0} minW={{ base: "auto", md: "120px" }}>
                           <Text fontSize="xs" color="texto.secundario">SKU: <b>{art.sku || '-'}</b></Text>
                           <Text fontSize="xs" color="texto.secundario">Unidad: <b>{art.unidad_medida}</b></Text>
                         </VStack>
-                        <VStack align="start" spacing={0} minW="120px">
+                        <VStack align="start" spacing={0} minW={{ base: "auto", md: "120px" }}>
                           <Text fontSize="xs" color="texto.secundario">Stock: <b>{art.stock_actual}</b> (mín: <b>{art.stock_minimo}</b>)</Text>
                           <Text fontSize="xs" color="texto.secundario">Categoría: <b>{art.categoria?.nombre || '-'}</b></Text>
                         </VStack>
-                        <VStack align="start" spacing={0} minW="120px">
+                        <VStack align="start" spacing={0} minW={{ base: "auto", md: "120px" }}>
                           <Text fontSize="xs" color="texto.secundario">Costo base: <b>${art.costo_base}</b></Text>
                           {art.tipo === 'producto_terminado' && (
                             <Text fontSize="xs" color="texto.secundario">Margen: <b>{art.margen_ganancia}%</b></Text>
@@ -234,13 +317,21 @@ const ArticulosPage = () => {
                         </VStack>
                       </HStack>
                     </Box>
-                    <HStack gap={2} alignSelf="flex-start" pt={1}>
+                    <HStack gap={2} alignSelf={{ base: "stretch", md: "flex-start" }} justify={{ base: "flex-end", md: "flex-start" }} wrap="wrap" pt={1}>
                       <Button size="xs" variant="outline" onClick={() => handleOpenModal(art)} _hover={{ bg: "marca.500",}}>
                         <Edit size={14}/>
                         <Text style={{ marginLeft: '4px' }} display={{ base: "none", md: "inline" }} color="texto.principal">
                             Editar
                         </Text>
                       </Button>
+                      {art.tipo === "producto_terminado" && (
+                        <Button size="xs" variant="outline" onClick={() => handleOpenFormula(art)} _hover={{ bg: "marca.500" }}>
+                          <List size={14} />
+                          <Text style={{ marginLeft: '4px' }} display={{ base: "none", md: "inline" }} color="texto.principal">
+                            Fórmula
+                          </Text>
+                        </Button>
+                      )}
                       <Button size="xs" variant="outline" _hover={{ bg: "red.600" }} onClick={() => confirmDelete(art.id)}>
                         <Trash size={14}/> 
                         <Text style={{ marginLeft: '4px' }} display={{ base: "none", md: "inline" }} color="texto.principal">
@@ -248,7 +339,7 @@ const ArticulosPage = () => {
                         </Text>
                       </Button>
                     </HStack>
-                  </HStack>
+                  </Stack>
                 );
               })
             )}
@@ -344,6 +435,107 @@ const ArticulosPage = () => {
                 </Button>
               </Dialog.Footer>
               <Dialog.CloseTrigger disabled={submitting} />
+            </Dialog.Content>
+          </Dialog.Positioner>
+        </Dialog.Root>
+
+        <Dialog.Root open={isFormulaOpen} onOpenChange={(e) => !formulaSaving && !formulaDeletingId && setIsFormulaOpen(e.open)}>
+          <Dialog.Backdrop />
+          <Dialog.Positioner>
+            <Dialog.Content bg="superficie.tarjeta" borderRadius="xl" p={3} boxShadow="xl" w={{ base: "98vw", md: "1200px", lg: "1320px" }} maxW="none">
+              <Dialog.Header>
+                <Dialog.Title>
+                  Fórmula de {selectedProducto?.nombre || "producto"}
+                </Dialog.Title>
+              </Dialog.Header>
+              <Dialog.Body>
+                <Stack gap={4}>
+                  <Text color="texto.secundario" fontSize="sm">
+                    Agrega insumos y su cantidad necesaria para producir 1 unidad del producto terminado.
+                  </Text>
+
+                  {formulaError && <AlertMessage type="error">{formulaError}</AlertMessage>}
+
+                  <Field.Root>
+                    <Field.Label>Ingredientes actuales</Field.Label>
+                    {formulaLoading ? (
+                      <Text color="texto.secundario">Cargando fórmula...</Text>
+                    ) : formulaItems.length === 0 ? (
+                      <Box bg="fondo.secundario" border="1px dashed" borderColor="superficie.borde" borderRadius="lg" p={4}>
+                        <Text color="texto.secundario">Todavía no agregaste insumos para este producto.</Text>
+                      </Box>
+                    ) : (
+                      <VStack align="stretch" gap={2}>
+                        {formulaItems.map((item) => (
+                          <Box key={item.id} bg="fondo.secundario" borderRadius="lg" p={3} border="1px solid" borderColor="superficie.borde">
+                            <Stack direction={{ base: "column", md: "row" }} justify="space-between" align={{ base: "stretch", md: "center" }} gap={3}>
+                              <VStack align="start" gap={0}>
+                                <Text color="texto.principal" fontWeight="semibold" fontSize="sm">{item.nombre}</Text>
+                                <Text color="texto.secundario" fontSize="xs">Insumo de la fórmula</Text>
+                              </VStack>
+
+                              <HStack justify="space-between" w={{ base: "100%", md: "auto" }} gap={2}>
+                                <Box bg="superficie.tarjeta" border="1px solid" borderColor="superficie.borde" borderRadius="md" px={3} py={1.5}>
+                                  <Text color="texto.principal" fontSize="xs" fontWeight="medium">
+                                    {item.pivot?.cantidad_necesaria} {item.unidad_medida}
+                                  </Text>
+                                </Box>
+                                <Button size="xs" variant="ghost" _hover={{ bg: "red.600", color: "white" }} onClick={() => handleRemoveIngrediente(item.id)} loading={formulaDeletingId === item.id}>
+                                  Quitar
+                                </Button>
+                              </HStack>
+                            </Stack>
+                          </Box>
+                        ))}
+                      </VStack>
+                    )}
+                  </Field.Root>
+
+                  <Field.Root>
+                    <Field.Label>Agregar insumo</Field.Label>
+                    <HStack align="end" gap={3} flexWrap={{ base: "wrap", md: "nowrap" }}>
+                      <Box flex={1} minW={{ base: "100%", md: "auto" }}>
+                        <NativeSelect.Root>
+                          <NativeSelect.Field value={formulaForm.materia_prima_id} onChange={(e) => setFormulaForm((prev) => ({ ...prev, materia_prima_id: e.target.value }))}>
+                            <option value="">Seleccionar insumo...</option>
+                            {insumosDisponibles.map((insumo) => (
+                              <option key={insumo.id} value={insumo.id}>{insumo.nombre}</option>
+                            ))}
+                          </NativeSelect.Field>
+                          <NativeSelect.Indicator />
+                        </NativeSelect.Root>
+                      </Box>
+
+                      <HStack w={{ base: "100%", md: "260px" }} gap={2}>
+                        <Input type="number" min="0.001" step="0.001" value={formulaForm.cantidad_necesaria} onChange={(e) => setFormulaForm((prev) => ({ ...prev, cantidad_necesaria: e.target.value }))} placeholder="Cantidad" />
+                        <Text minW="72px" color="texto.secundario" fontSize="sm">
+                          {insumoSeleccionado?.unidad_medida || "unidad"}
+                        </Text>
+                      </HStack>
+
+                      <Button bg="marca.500" color="texto.inverso" onClick={handleAddIngrediente} loading={formulaSaving} disabled={insumosDisponibles.length === 0}>
+                        Agregar
+                      </Button>
+                    </HStack>
+                    {insumosDisponibles.length === 0 && (
+                      <Text color="texto.secundario" fontSize="sm" mt={2}>
+                        No hay insumos activos disponibles para agregar.
+                      </Text>
+                    )}
+                  </Field.Root>
+                </Stack>
+              </Dialog.Body>
+              <Dialog.Footer>
+                {formulaItems.length > 0 && (
+                  <Button variant="outline" onClick={handleRecalcularCosto} loading={formulaRecalculating} disabled={formulaSaving || !!formulaDeletingId || formulaLoading}>
+                    Recalcular costo
+                  </Button>
+                )}
+                <Button variant="ghost" onClick={handleCloseFormula} disabled={formulaSaving || !!formulaDeletingId}>
+                  Cerrar
+                </Button>
+              </Dialog.Footer>
+              <Dialog.CloseTrigger disabled={formulaSaving || !!formulaDeletingId} />
             </Dialog.Content>
           </Dialog.Positioner>
         </Dialog.Root>
